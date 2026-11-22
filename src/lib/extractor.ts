@@ -20,7 +20,7 @@ const getExtractorModel = () => {
   const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (geminiKey) {
     const google = createGoogleGenerativeAI({ apiKey: geminiKey });
-    return { model: google("gemini-1.5-flash"), provider: "gemini" as const };
+    return { model: google("gemini-2.5-flash"), provider: "gemini" as const };
   }
 
   if (process.env.GROQ_API_KEY) {
