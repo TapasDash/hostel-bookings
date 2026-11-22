@@ -96,10 +96,10 @@ export const fetchBookingEmails = async (
   accessToken: string,
   days: number = 30
 ): Promise<CleanedEmail[]> => {
+  // Searches both READ and UNREAD emails across Inbox and Archive
   const dateFilter = days > 0 ? `newer_than:${days}d ` : "";
-  // Broad query matching Hostelworld, Booking.com, Agoda, Airbnb, Expedia, direct bookings, and Vietnamese booking terms
-  const query = `${dateFilter}(from:hostelworld OR from:booking.com OR from:agoda OR from:airbnb OR from:expedia OR subject:(reservation OR booking OR confirmation OR "đặt phòng" OR "xác nhận" OR hostel OR hotel))`;
-  const listUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=25`;
+  const query = `${dateFilter}(from:hostelworld OR from:booking.com OR from:agoda OR from:airbnb OR from:expedia OR subject:(reservation OR booking OR confirmation OR "đặt phòng" OR "xác nhận" OR hostel OR hotel OR "check-in"))`;
+  const listUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=50`;
 
   const listRes = await fetch(listUrl, {
     headers: {
