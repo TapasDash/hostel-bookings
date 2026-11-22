@@ -151,11 +151,15 @@ export const extractBookingsBatch = async (
     }
   }
 
+  // Return clean list sorted with the latest/newest booking email first
   return Array.from(deduplicatedMap.values())
-    .map((item) => item.booking)
     .sort((a, b) => {
-      if (a.checkIn === "N/A") return 1;
-      if (b.checkIn === "N/A") return -1;
-      return a.checkIn.localeCompare(b.checkIn);
-    });
+      // Primary sort: newest email received timestamp first
+      if (b.timestamp !== a.timestamp) {
+        return b.timestamp - a.timestamp;
+      }
+      // Secondary fallback: newest check-in date
+      return b.booking.checkIn.localeCompare(a.booking.checkIn);
+    })
+    .map((item) => item.booking);
 };
