@@ -276,7 +276,7 @@ export default function Dashboard() {
                 {t.dateRange}:
               </span>
               <div className="inline-flex p-1 bg-[#16161A] rounded-xl border border-[#1E293B] flex-wrap gap-1">
-                {([1, 3, 7, 14, 30, 90] as const).map((dayOption) => (
+                {([1, 3, 7, 14, 30, 90, 0] as const).map((dayOption) => (
                   <button
                     key={dayOption}
                     type="button"
@@ -297,7 +297,9 @@ export default function Dashboard() {
                       ? t.last14Days
                       : dayOption === 30
                       ? t.last30Days
-                      : t.last90Days}
+                      : dayOption === 90
+                      ? t.last90Days
+                      : t.allTime}
                   </button>
                 ))}
               </div>
