@@ -9,14 +9,14 @@ export const POST = async (request: Request) => {
 
     if (!session || !session.accessToken) {
       return NextResponse.json(
-        { error: "Unauthorized. Missing Google OAuth session or Gmail permissions." },
+        { error: "Unauthorized. Missing Google OAuth session or Gmail permissions. Please sign out and sign in again." },
         { status: 401 }
       );
     }
 
     const body = await request.json().catch(() => ({}));
-    const rawDays = body.days;
-    const days: 1 | 3 | 7 = rawDays === 1 || rawDays === 7 ? rawDays : 3;
+    const rawDays = Number(body.days);
+    const days = !isNaN(rawDays) && rawDays > 0 ? rawDays : 30;
 
     // Fetch matching emails from Gmail REST API
     const emails = await fetchBookingEmails(session.accessToken, days);
@@ -26,10 +26,11 @@ export const POST = async (request: Request) => {
         bookings: [],
         scannedCount: 0,
         extractedCount: 0,
+        message: `No booking emails found in the last ${days} days matching Hostelworld, Booking.com, Agoda, or reservation keywords.`,
       });
     }
 
-    // Extract structured bookings using Groq LLM + Zod
+    // Extract structured bookings using AI
     const bookings = await extractBookingsBatch(emails);
 
     return NextResponse.json({

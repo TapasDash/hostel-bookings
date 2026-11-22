@@ -25,7 +25,7 @@ import { translations, type Language } from "@/lib/i18n";
 export default function Dashboard() {
   const { data: session, status } = useSession();
   const [lang, setLang] = useState<Language>("en");
-  const [days, setDays] = useState<1 | 3 | 7>(3);
+  const [days, setDays] = useState<number>(30);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
@@ -275,19 +275,29 @@ export default function Dashboard() {
                 <Calendar className="w-3.5 h-3.5" />
                 {t.dateRange}:
               </span>
-              <div className="inline-flex p-1 bg-[#16161A] rounded-xl border border-[#1E293B]">
-                {([1, 3, 7] as const).map((dayOption) => (
+              <div className="inline-flex p-1 bg-[#16161A] rounded-xl border border-[#1E293B] flex-wrap gap-1">
+                {([1, 3, 7, 14, 30, 90] as const).map((dayOption) => (
                   <button
                     key={dayOption}
                     type="button"
                     onClick={() => setDays(dayOption)}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+                    className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-all ${
                       days === dayOption
                         ? "bg-[#4F46E5] text-white shadow"
                         : "text-[#94A3B8] hover:text-[#F8FAFC]"
                     }`}
                   >
-                    {dayOption === 1 ? t.today : dayOption === 3 ? t.last3Days : t.last7Days}
+                    {dayOption === 1
+                      ? t.today
+                      : dayOption === 3
+                      ? t.last3Days
+                      : dayOption === 7
+                      ? t.last7Days
+                      : dayOption === 14
+                      ? t.last14Days
+                      : dayOption === 30
+                      ? t.last30Days
+                      : t.last90Days}
                   </button>
                 ))}
               </div>

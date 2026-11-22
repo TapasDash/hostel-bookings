@@ -94,10 +94,12 @@ const getHeader = (headers: GmailHeader[] | undefined, name: string): string => 
 
 export const fetchBookingEmails = async (
   accessToken: string,
-  days: 1 | 3 | 7
+  days: number = 30
 ): Promise<CleanedEmail[]> => {
-  const query = `(from:hostelworld OR from:booking.com OR from:agoda OR subject:(reservation OR booking OR confirmation)) newer_than:${days}d`;
-  const listUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=20`;
+  const dateFilter = days > 0 ? `newer_than:${days}d ` : "";
+  // Broad query matching Hostelworld, Booking.com, Agoda, Airbnb, Expedia, direct bookings, and Vietnamese booking terms
+  const query = `${dateFilter}(from:hostelworld OR from:booking.com OR from:agoda OR from:airbnb OR from:expedia OR subject:(reservation OR booking OR confirmation OR "đặt phòng" OR "xác nhận" OR hostel OR hotel))`;
+  const listUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=25`;
 
   const listRes = await fetch(listUrl, {
     headers: {
@@ -109,7 +111,7 @@ export const fetchBookingEmails = async (
 
   if (!listRes.ok) {
     if (listRes.status === 401) {
-      throw new Error("GMAIL_AUTH_EXPIRED: Gmail access token has expired. Please sign in again.");
+      throw new Error("GMAIL_AUTH_EXPIRED: Gmail access token has expired. Please sign out and sign in again.");
     }
     const errorBody = await listRes.text().catch(() => "");
     throw new Error(`Gmail API error (${listRes.status}): ${listRes.statusText} ${errorBody}`);
