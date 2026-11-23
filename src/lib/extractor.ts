@@ -1,4 +1,3 @@
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { groq } from "@ai-sdk/groq";
 import { generateObject } from "ai";
 import { bookingSchema, type Booking } from "@/lib/schema";
@@ -15,28 +14,23 @@ const chunkArray = <T>(array: T[], size: number): T[][] => {
   return chunks;
 };
 
-// Prioritizes Groq (100% free, no credit depletion), or uses Gemini if configured
+// Exclusively uses Groq (100% free, no prepayment credits needed)
 const getExtractorModel = () => {
-  if (process.env.GROQ_API_KEY) {
-    return { model: groq("openai/gpt-oss-120b"), provider: "groq" as const };
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      "Missing GROQ_API_KEY: Please ensure GROQ_API_KEY is defined in .env.local and restart your dev server (or add it to Vercel Environment Variables)."
+    );
   }
 
-  const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-  if (geminiKey) {
-    const google = createGoogleGenerativeAI({ apiKey: geminiKey });
-    return { model: google("gemini-1.5-flash"), provider: "gemini" as const };
-  }
-
-  throw new Error(
-    "Missing AI API key: Please set GROQ_API_KEY or GEMINI_API_KEY in .env.local"
-  );
+  return groq("openai/gpt-oss-120b");
 };
 
 const extractSingleBooking = async (
   email: CleanedEmail,
   maxRetries = 2
 ): Promise<Booking | null> => {
-  const { model } = getExtractorModel();
+  const model = getExtractorModel();
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
@@ -56,20 +50,15 @@ ${email.body}`,
       return object;
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      
-      // If billing/credit issue on Gemini, fail fast with a clear message so the user knows immediately
+
       if (
-        errorMessage.includes("prepayment credits are depleted") ||
-        errorMessage.includes("402") ||
-        errorMessage.includes("RESOURCE_EXHAUSTED")
+        errorMessage.includes("API_KEY_INVALID") ||
+        errorMessage.includes("invalid api key") ||
+        errorMessage.includes("401")
       ) {
         throw new Error(
-          "AI Error (Gemini): Your prepayment credits are depleted. Please update your key in Google AI Studio (use a free tier project) or switch to a free GROQ_API_KEY from console.groq.com."
+          "Groq API Error: Invalid GROQ_API_KEY. Please verify your key at https://console.groq.com."
         );
-      }
-
-      if (errorMessage.includes("API_KEY_INVALID") || errorMessage.includes("invalid api key")) {
-        throw new Error("AI Error: Invalid API key provided for the AI provider.");
       }
 
       const isRateLimit =
@@ -78,13 +67,13 @@ ${email.body}`,
         errorMessage.toLowerCase().includes("too many requests");
 
       if (isRateLimit && attempt < maxRetries) {
-        const waitMs = (attempt + 1) * 2500;
-        console.warn(`[AI Rate Limit] Retrying email ${email.id} in ${waitMs}ms...`);
+        const waitMs = (attempt + 1) * 2000;
+        console.warn(`[Groq Rate Limit] Retrying email ${email.id} in ${waitMs}ms...`);
         await sleep(waitMs);
         continue;
       }
 
-      console.error(`[Extractor] Error on email ${email.id}:`, errorMessage);
+      console.error(`[Groq Extractor] Error on email ${email.id}:`, errorMessage);
       return null;
     }
   }
@@ -139,11 +128,9 @@ export const extractBookingsBatch = async (
   // Return clean list sorted with the latest/newest booking email first
   return Array.from(deduplicatedMap.values())
     .sort((a, b) => {
-      // Primary sort: newest email received timestamp first
       if (b.timestamp !== a.timestamp) {
         return b.timestamp - a.timestamp;
       }
-      // Secondary fallback: newest check-in date
       return b.booking.checkIn.localeCompare(a.booking.checkIn);
     })
     .map((item) => item.booking);
