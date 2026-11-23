@@ -15,20 +15,20 @@ const chunkArray = <T>(array: T[], size: number): T[][] => {
   return chunks;
 };
 
-// Selects Gemini if GEMINI_API_KEY is present, or Groq if GROQ_API_KEY is present
+// Prioritizes Groq (100% free, no credit depletion), or uses Gemini if configured
 const getExtractorModel = () => {
+  if (process.env.GROQ_API_KEY) {
+    return { model: groq("openai/gpt-oss-120b"), provider: "groq" as const };
+  }
+
   const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (geminiKey) {
     const google = createGoogleGenerativeAI({ apiKey: geminiKey });
-    return { model: google("gemini-2.5-flash"), provider: "gemini" as const };
-  }
-
-  if (process.env.GROQ_API_KEY) {
-    return { model: groq("llama-3.3-70b-versatile"), provider: "groq" as const };
+    return { model: google("gemini-1.5-flash"), provider: "gemini" as const };
   }
 
   throw new Error(
-    "Missing AI API key: Please set GEMINI_API_KEY or GROQ_API_KEY in .env.local"
+    "Missing AI API key: Please set GROQ_API_KEY or GEMINI_API_KEY in .env.local"
   );
 };
 
