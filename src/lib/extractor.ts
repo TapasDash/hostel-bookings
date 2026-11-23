@@ -43,28 +43,13 @@ const extractSingleBooking = async (
       const { object } = await generateObject({
         model,
         schema: bookingSchema,
-        prompt: `You are an expert AI parser for hostel and hotel booking confirmation emails.
-Extract structured reservation details from this email.
-If this email is NOT an actual reservation confirmation, modification, or cancellation (e.g. promotional newsletter, general inquiry, review request, payment invoice notification without booking details), set "isBookingEmail": false and provide placeholder values for required strings (e.g. "N/A" for bookingRef, guestName, checkIn, checkOut, 0 for guestsCount).
+        prompt: `Extract structured hostel/hotel booking reservation details from this email.
+If this is not an actual booking confirmation, modification, or cancellation (e.g. newsletter, review request, promo), set "isBookingEmail": false.
 
-Important extraction instructions:
-- action: "new" for new bookings, "modified" for amendments/updates, "cancelled" for cancellations.
-- otaSource: Detect whether it is from Hostelworld, Booking.com, Agoda, Direct, or Other based on sender and email content.
-- bookingRef: Clean reservation ID or confirmation number (e.g., "HW-12345678", "4028392102").
-- guestName: Full name of primary lead guest.
-- checkIn & checkOut: Dates in YYYY-MM-DD format strictly.
-- guestsCount: Total number of guests.
-- roomType: Bed or room type (e.g. "6-Bed Mixed Dorm", "Double Room with Private Bathroom").
-- totalPrice: Numeric total amount (e.g. 150.00) or null if not stated.
-- currency: 3-letter currency code or symbol (e.g. "USD", "EUR", "VND") or null.
-- notes: Any key notes like late arrival, deposit amount, or special requests, or null.
-
-Email Details:
 From: ${email.from}
 Subject: ${email.subject}
 Date: ${email.date}
 
-Email Body:
 ${email.body}`,
       });
 

@@ -72,6 +72,7 @@ const extractPartsContent = (part?: GmailPart): { text: string; html: string } =
   return { text, html };
 };
 
+// Optimizes token consumption: skips footers/nav/links/images and truncates to 2000 characters
 const cleanEmailBody = (text: string, html: string): string => {
   if (html) {
     const converted = convert(html, {
@@ -79,11 +80,13 @@ const cleanEmailBody = (text: string, html: string): string => {
       selectors: [
         { selector: "a", options: { ignoreHref: true } },
         { selector: "img", format: "skip" },
+        { selector: "footer", format: "skip" },
+        { selector: "nav", format: "skip" },
       ],
     });
-    return converted.trim().slice(0, 4000);
+    return converted.replace(/\n\s*\n\s*\n/g, "\n\n").trim().slice(0, 2000);
   }
-  return text.trim().slice(0, 4000);
+  return text.replace(/\n\s*\n\s*\n/g, "\n\n").trim().slice(0, 2000);
 };
 
 const getHeader = (headers: GmailHeader[] | undefined, name: string): string => {
@@ -92,11 +95,33 @@ const getHeader = (headers: GmailHeader[] | undefined, name: string): string => 
   return header?.value ?? "";
 };
 
+// Pre-filter: identifies obvious promotional/marketing junk before calling AI, saving 100% of tokens for that email
+const isMarketingEmail = (subject: string, snippet: string): boolean => {
+  const combined = `${subject} ${snippet}`.toLowerCase();
+  const marketingKeywords = [
+    "review your stay",
+    "how was your stay",
+    "rate your stay",
+    "rate your experience",
+    "share your thoughts",
+    "take our survey",
+    "special offer",
+    "exclusive offer",
+    "deal of the day",
+    "discount code",
+    "travel inspiration",
+    "explore destinations",
+    "earn points",
+    "newsletter",
+  ];
+
+  return marketingKeywords.some((keyword) => combined.includes(keyword));
+};
+
 export const fetchBookingEmails = async (
   accessToken: string,
   days: number = 30
 ): Promise<CleanedEmail[]> => {
-  // Searches both READ and UNREAD emails across Inbox and Archive
   const dateFilter = days > 0 ? `newer_than:${days}d ` : "";
   const query = `${dateFilter}(from:hostelworld OR from:booking.com OR from:agoda OR from:airbnb OR from:expedia OR subject:(reservation OR booking OR confirmation OR "đặt phòng" OR "xác nhận" OR hostel OR hotel OR "check-in"))`;
   const listUrl = `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=50`;
@@ -142,18 +167,26 @@ export const fetchBookingEmails = async (
 
       const fullMsg: GmailMessageResponse = await detailRes.json();
       const headers = fullMsg.payload?.headers ?? [];
+      const subject = getHeader(headers, "subject") || fullMsg.snippet || "No Subject";
+      const snippet = fullMsg.snippet || "";
+
+      // Skip obvious marketing emails to conserve AI tokens
+      if (isMarketingEmail(subject, snippet)) {
+        return null;
+      }
+
       const { text, html } = extractPartsContent(fullMsg.payload);
       const cleanedBody = cleanEmailBody(text, html);
       const timestamp = parseInt(fullMsg.internalDate, 10) || Date.now();
 
       return {
         id: fullMsg.id,
-        subject: getHeader(headers, "subject") || fullMsg.snippet || "No Subject",
+        subject,
         from: getHeader(headers, "from") || "Unknown Sender",
         date: getHeader(headers, "date") || new Date(timestamp).toISOString(),
         timestamp,
-        snippet: fullMsg.snippet || "",
-        body: cleanedBody || fullMsg.snippet || "",
+        snippet,
+        body: cleanedBody || snippet,
       };
     } catch {
       return null;
